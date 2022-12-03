@@ -1,0 +1,40 @@
+package:
+  name: COPs_analysis
+  version: "0.0"
+
+source:
+  git_rev: "0.0"
+  git_url: https://github.com/hkwang/COPs_analysis_CCPN.git
+
+requirements:
+  build:
+    - python
+    - typing
+    - matplotlib
+    - os
+    - numpy
+    - pandas
+    - scipy
+    - setuptools
+
+  run:
+    - python
+    - typing
+    - matplotlib
+    - os
+    - numpy
+    - pandas
+    - scipy
+
+test:
+  imports:
+    - python
+    - typing
+    - matplotlib
+    - os
+    - numpy
+    - pandas
+    - scipy
+
+about:
+  home: https://github.com/hkwang/COPs_analysis_CCPN.git
