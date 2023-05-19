@@ -163,7 +163,7 @@ class cops_analyze():
         weights = np.array([[0.6, 0.9, 1, 0.9, 0.6]])  # weights vector to compute weighted sum
         slices = spectrum.getRegion(**limits_dict)
 
-        trace = np.tensordot(slices, weights.T @ weights, axes=(N_H_index, [0, 1]))
+        trace = np.tensordot(slices.T, weights.T @ weights, axes=(N_H_index, [0, 1]))
         trace = np.array(trace)
 
         normalizer = numpy.linalg.norm(trace) / sw
