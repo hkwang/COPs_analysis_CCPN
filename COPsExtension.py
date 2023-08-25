@@ -32,9 +32,11 @@ import pandas as pd
 from ccpn.core.NmrResidue import NmrResidue
 from ccpn.core.lib.Notifiers import Notifier
 from ccpn.AnalysisAssign.modules.backboneExtensions.BackboneAssignmentExtensionABC import BackboneAssignmentExtensionFrame
-from ccpn.AnalysisAssign.modules.backboneExtensions.COPs_analysis.cops_analysis import cops_analyze
+from ccpn.AnalysisAssign.modules.backboneExtensions.COPs_analysis_CCPN.cops_analysis import cops_analyze
 from ccpn.ui.gui.widgets.PulldownListsForObjects import SpectrumGroupPulldown, DataTablePulldown, PeakListPulldown
 from ccpn.ui.gui.widgets.CompoundWidgets import CheckBoxCompoundWidget
+from ccpn.framework.Application import getApplication, getMainWindow, getProject, getCurrent
+from ccpn.AnalysisAssign.lib.scoring import getNmrResidueMatches
 
 
 _cwWidth = 200
@@ -48,10 +50,16 @@ class COPsExtensionFrame(BackboneAssignmentExtensionFrame):
     isGuiActive = True
 
     def __init__(self, guiModule, *args, **Framekwargs):
+        self.application = getApplication()
+        self.mainWindow = getMainWindow()
+        self.project = getProject()
+        self.current = getCurrent()
         BackboneAssignmentExtensionFrame.__init__(self, guiModule, **Framekwargs)
 
         self.guiModule.findAndDisplayMatches = self.findAndDisplayMatches
         self.ca = None
+
+
 
     def registerNotifiers(self):
         self._resChangedNotifier = Notifier(self.project,
@@ -81,12 +89,51 @@ class COPsExtensionFrame(BackboneAssignmentExtensionFrame):
     def findAndDisplayMatches(self, nmrResidue):
         """Find and displays the matches to nmrResidue"""
 
-        assignMatrix = self.guiModule.getAssignedMatrix(nmrResidue)
+        assignMatrix = self.getAssignedMatrix(nmrResidue)
         if self.isGuiActive:
             assignMatrix = self._getCopAssignedMatrix(nmrResidue, assignMatrix)
 
         ## Native behaviour
-        self.guiModule._createMatchStrips(assignMatrix)
+        self.guiModule._createMatchStrips(nmrResidue, assignMatrix)
+
+    def getAssignedMatrix(self, nmrResidue):
+        """
+
+        :param nmrResidue:
+        :return:
+        """
+
+        # If NmrResidue is a -1 offset NmrResidue, set queryShifts as value from self.interShifts dictionary
+        # Set matchShifts as self.intraShifts
+        if nmrResidue.relativeOffset == -1:
+            if nmrResidue not in self.guiModule.interShifts:
+                queryShifts = []
+            else:
+                queryShifts = [shift for shift in self.guiModule.interShifts[nmrResidue]
+                               if (shift and not shift.isDeleted) and shift.nmrAtom and (
+                                           shift.nmrAtom.name in self.guiModule.nmrAtomsToMatch)]
+            matchShifts = self.guiModule.intraShifts
+
+        # If NmrResidue is not an offset NmrResidue, set queryShifts as value from self.intraShifts dictionary
+        # Set matchShifts as self.interShifts
+        elif nmrResidue.relativeOffset == 0 or nmrResidue.relativeOffset is None:
+            if nmrResidue not in self.guiModule.intraShifts:
+                queryShifts = []
+            else:
+                queryShifts = [shift for shift in self.guiModule.intraShifts[nmrResidue]
+                               if (shift and not shift.isDeleted) and shift.nmrAtom.name in self.guiModule.nmrAtomsToMatch]
+            matchShifts = self.guiModule.interShifts
+
+        # If NmrResidue has offset other than -1 or 0/None, tell user that we are not able to match
+        else:
+            getLogger().warning(
+                "Assignment matching not supported for NmrResidue offset %s. Matching display skipped"
+                % nmrResidue.relativeOffset
+            )
+            return
+        assignMatrix = getNmrResidueMatches(queryShifts, matchShifts, 'averageQScore')
+
+        return assignMatrix
 
     def _initialize_analyzer(self):
         sg_pid, pl_pid = self.SGWidget.getText(), self.PLWidget.getText()
@@ -158,11 +205,13 @@ class COPsExtensionFrame(BackboneAssignmentExtensionFrame):
         return assignMatrix
 
     def _change_Res(self, data):
+        print("RES CHANGE")
         if not self.ca:
             self._initialize_analyzer()
         self.ca.updateNmrResidue(data['trigger'], data['object'], oldPid=data['oldPid'])
 
     def _change_Peak(self, data):
+        print("PEAK CHANGE")
         if not self.ca:
             self._initialize_analyzer()
         self.ca.updatePeak(data['trigger'], data['object'])

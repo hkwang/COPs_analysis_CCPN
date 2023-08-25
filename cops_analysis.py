@@ -41,6 +41,8 @@ from ccpn.core.SpectrumGroup import SpectrumGroup
 from ccpn.core.DataTable import DataTable
 from ccpn.core.PeakList import PeakList
 from ccpn.core.NmrResidue import NmrResidue
+from ccpn.util.Logging import getLogger
+
 
 
 
@@ -621,7 +623,7 @@ class cops_analyze():
         if len(this_data)>0:
             this_residue_info = this_data.iloc[0]
         else:
-            getLogger().warning("No matches by Lineshape found. No plot generated")
+            getLogger().error("No matches by Lineshape found. No plot generated")
 
         this_data, this_center, this_ppm, this_mask = this_residue_info[['1D_slice', 'CA center', 'ppm_vals', 'COPS_mask']]
 
@@ -676,6 +678,7 @@ class cops_analyze():
     #SECTION 5. LINESHAPE UPDATES
     #####
     def updateNmrResidue(self, trigger, residue: NmrResidue, oldPid: str=None):
+        print(trigger)
         if trigger == 'delete':
             self.tb = self.tb.drop(self.tb.index[[self.tb['residues']==residue.pid]])
         elif trigger == 'rename' and oldPid is not None:
@@ -693,6 +696,7 @@ class cops_analyze():
         self.tb = pd.concat([self.tb, pd.DataFrame(new_row)], ignore_index=True)
 
     def updatePeak(self, trigger: str, peak: Peak):
+        print(trigger)
         peakname = peak.pid
         if trigger != 'delete':
             out = self._getCAResidue(peak)
